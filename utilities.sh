@@ -65,3 +65,41 @@ mime() {
     xdg-mime query default $(xdg-mime query filetype $1 | cut -d ';' -f1)
 }
 
+###############################################################################
+#   Create a tunnel for a given port or service name
+#   Example:    tunnel rsync
+#               tunnel 22
+#       Globals:
+#           TUNNEL_HOST = the host through which the tunnel will be created
+#           TUNNEL_TARGET = the target that you wish to get to
+#       Arguments:
+#           $1 = service name or port number
+#       Returns:
+#           None
+###############################################################################
+tunnel() {
+    if [[ -z $TUNNEL_HOST ]]; then
+        echo "TUNNEL_HOST variable not set"
+        return 1
+    fi
+    if [[ -z $TUNNEL_TARGET ]]; then
+        echo "TUNNEL_TARGET variable not set"
+        return 1
+    fi
+
+    if [[ $1 =~ ^[:digit:]+$ ]]; then
+        rport=$1
+    else
+        rport=$(awk -v service=$1\
+            '$1 == service { split($2, a, "/"); print a[1]; exit }'\
+            /etc/services)
+        if [[ -z $rport ]]; then
+            echo "Service $1 not found"
+            return 1
+        fi
+    fi
+
+    lport=$(($rport + 1024))
+    echo "$TUNNEL_TARGET:$rport is now on localhost:$lport"
+    ssh -L $lport:$TUNNEL_TARGET:$rport $TUNNEL_HOST
+}
