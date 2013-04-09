@@ -30,6 +30,28 @@ burn_directory() {
 }
 
 ###############################################################################
+#   Search for JARs containing the given classname
+#   Global:
+#       None
+#   Arguments:
+#       $1 = classname
+#       $+ = paths where to look for JARs (recursively)
+#   Returns:
+#       Paths to JARs that contain the given class
+###############################################################################
+find_jar() {
+    class=$1
+    shift
+    IFS=$(echo -en '\n\b')
+    for file in $(find $@ -type f -iname '*.jar'); do
+        if unzip -l "$file" | grep $class &>/dev/null; then
+            echo "$file"
+        fi
+    done
+    unset IFS
+}
+
+###############################################################################
 #   Create directories based on file extension, then move files to them.
 #   Helps to clean up a messy directory with lots of files
 #   Globals:
