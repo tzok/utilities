@@ -88,6 +88,21 @@ mime() {
 }
 
 ###############################################################################
+#   Run some process only once, globally for the whole system
+#   Globals:
+#       None
+#   Arguments:
+#       $@ = what you want to run once
+#   Return:
+#       exit code = 1, if the application was not started (other instance is
+#       running)
+###############################################################################
+runonce() {
+    ( flock -n 9 && eval $@ ) 9>/tmp/runonce.$1
+}
+
+
+###############################################################################
 #   Create a tunnel for a given port or service name
 #   Example:    tunnel rsync
 #               tunnel 22
