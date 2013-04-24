@@ -115,6 +115,10 @@ runonce() {
 #           None
 ###############################################################################
 tunnel() {
+    if [[ $# -ne 1 ]]; then
+        echo 'Usage: tunnel <service|port>'
+        return 1
+    fi
     if [[ -z $TUNNEL_HOST ]]; then
         echo "TUNNEL_HOST variable not set"
         return 1
@@ -124,7 +128,7 @@ tunnel() {
         return 1
     fi
 
-    if [[ $1 =~ ^[:digit:]+$ ]]; then
+    if [[ $1 =~ ^[[:digit:]]+$ ]]; then
         rport=$1
     else
         rport=$(awk -v service=$1\
