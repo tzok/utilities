@@ -40,10 +40,15 @@ burn_directory() {
 #       Paths to JARs that contain the given class
 ###############################################################################
 find_jar() {
+    if [[ $# -lt 2 ]]; then
+        echo 'Usage: find_jar CLASSNAME PATH-1 [PATH-2 ... PATH-n]'
+        return
+    fi
+
     class=$1
     shift
     IFS=$(echo -en '\n\b')
-    for file in $(find $@ -type f -iname '*.jar'); do
+    for file in $(find $@ -L -type f -iname '*.jar'); do
         if unzip -l "$file" | grep $class &>/dev/null; then
             echo "$file"
         fi
@@ -104,19 +109,20 @@ runonce() {
 
 ###############################################################################
 #   Create a tunnel for a given port or service name
-#   Example:    tunnel rsync
+#   Example:    tunnel rsync 80
 #               tunnel 22
+#               tunnel 9000@9000
 #       Globals:
 #           TUNNEL_HOST = the host through which the tunnel will be created
 #           TUNNEL_TARGET = the target that you wish to get to
 #       Arguments:
-#           $1 = service name or port number
+#           $i = service name or port number
 #       Returns:
 #           None
 ###############################################################################
 tunnel() {
-    if [[ $# -ne 1 ]]; then
-        echo 'Usage: tunnel <service|port>'
+    if [[ $# -eq 0 ]]; then
+        echo 'Usage: TUNNEL_CONFIG= TUNNEL_HOST= TUNNEL_TARGET= tunnel <service|port>'
         return 1
     fi
     if [[ -z $TUNNEL_HOST ]]; then
@@ -128,19 +134,31 @@ tunnel() {
         return 1
     fi
 
-    if [[ $1 =~ ^[[:digit:]]+$ ]]; then
-        rport=$1
-    else
-        rport=$(awk -v service=$1\
-            '$1 == service { split($2, a, "/"); print a[1]; exit }'\
-            /etc/services)
-        if [[ -z $rport ]]; then
-            echo "Service $1 not found"
-            return 1
-        fi
-    fi
+    local config
+    local lport
+    local rport
+    local i
 
-    lport=$(($rport + 1024))
-    echo "$TUNNEL_TARGET:$rport is now on localhost:$lport"
-    ssh -L $lport:$TUNNEL_TARGET:$rport $TUNNEL_HOST
+    for i in $@; do
+        if [[ $i =~ ^[[:digit:]]+(@[[:digit:]]+)?$ ]]; then
+            rport=$i
+        else
+            rport=$(awk -v service=$i\
+                '$1 == service { split($2, a, "/"); print a[1]; exit }'\
+                /etc/services)
+            if [[ -z $rport ]]; then
+                echo "Service $i not found"
+            fi
+        fi
+
+        if [[ $rport =~ [[:digit:]]+@[[:digit:]]+ ]]; then
+            lport=${rport%@*}
+            rport=${rport#*@}
+        else
+            lport=$(($rport + 10000))
+        fi
+        echo "$TUNNEL_TARGET:$rport is now on localhost:$lport"
+        config="$config -L $lport:$TUNNEL_TARGET:$rport"
+    done
+    ssh $TUNNEL_CONFIG $config $TUNNEL_HOST
 }
